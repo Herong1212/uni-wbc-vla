@@ -1,0 +1,100 @@
+<mujoco model="base">
+    <compiler angle="radian" meshdir="assets"/>
+
+    <!-- 使用隐式快速积分器，适合实时仿真，数值稳定性好 -->
+    <option integrator="implicitfast"/>
+
+    <default>
+        <default class="visual">
+            <!-- contype="0" conaffinity="0"：不参与碰撞检测 -->
+            <!-- group="2"：渲染组别 -->
+            <geom type="mesh" contype="0" conaffinity="0" group="2"/>
+        </default>
+
+        <default class="collision">
+            <!-- group="3"：碰撞组别 -->
+            <geom type="mesh" group="3"/>
+        </default>
+    </default>
+
+    <asset>
+        <material name="black" rgba="0.11372549 0.11372549 0.10196078 1"/>
+        <material name="gray" rgba="0.62745098 0.65098039 0.64705882 1"/>
+        <material name="dark_gray" rgba="0.35294118 0.37647059 0.37254902 1"/>
+
+        <!-- 保险杠/防撞条 -->
+        <mesh file="base/bumper.stl"/>
+        <!-- 底板 -->
+        <mesh file="base/bottom_plate.stl"/>
+        <!-- 主体外壳 -->
+        <mesh file="base/body.stl"/>
+        <!-- 顶板 -->
+        <mesh file="base/top_plate.stl"/>
+        <!-- 机械臂安装板 -->
+        <mesh file="base/arm_plate.stl"/>
+    </asset>
+
+    <worldbody>
+        <body name="base_link">
+            <!-- NOTE 惯性参数 -->
+            <!-- 质心位置：(0, 0, 0.035) 米（略高于几何中心） -->
+            <!-- 质量：60 kg（较重的移动底盘） -->
+            <!-- 转动惯量：对角矩阵 (0.001, 0.001, 0.001) -->
+            <inertial pos="0 0 0.035" mass="60" diaginertia="0.001 0.001 0.001"/>
+
+            <!-- NOTE 自由度（Joints）- 全向移动底盘 -->
+            <!-- X轴平移 -->
+            <joint name="joint_x" type="slide" axis="1 0 0"/>
+            <!-- Y轴平移 -->
+            <joint name="joint_y" type="slide" axis="0 1 0"/>
+            <!-- 绕Z轴旋转（yaw）-->
+            <joint name="joint_th"/>
+            <!-- ps 以上构成了一个 平面移动平台（类似差速驱动或全向轮底盘），具有 3 个自由度。 -->
+
+            <!-- ! 此外, 还有一种范式是轮子级物理建模（Wheel-level Physics）, 即 type="hinge", 此类范式: 
+                    1. ❌ 计算复杂，需要处理轮-地接触、差速运动学; 
+                    2. ❌ 控制困难：需要将线速度转换为左右轮转速
+                 ! 如果用轮子关节，需要逆运动学转换👇
+                    v_left = (v_linear - w_angular * wheel_base) / wheel_radius
+                    v_right = (v_linear + w_angular * wheel_base) / wheel_radius -->
+
+            <!-- * 本模型使用的是: 底盘级运动学建模（Base-level Kinematics）, 即 type="slide", 此类范式: 
+                    1. ✅ 简单直观：直接控制底盘位姿 (x, y, θ)
+                    2. ✅ 计算高效：无需处理轮子接触动力学
+                    3. ✅ 易于控制：驱动器直接设定目标位置
+                    4. ⚠️ 忽略轮子细节：无法模拟打滑、悬挂等
+                 * 如果使用 slide joint，控制非常直观👇
+                        data.ctrl[0] = target_x  # 直接设置目标X坐标
+                        data.ctrl[1] = target_y  # 直接设置目标Y坐标
+                        data.ctrl[2] = target_theta  # 直接设置目标朝向 -->
+
+            <!-- 视觉几何体（5个）：应用不同材质进行渲染 -->
+            <geom name="bumper_visual" class="visual" mesh="bumper" material="black"/>
+            <geom name="bottom_plate_visual" class="visual" mesh="bottom_plate" material="dark_gray"/>
+            <geom name="body_visual" class="visual" mesh="body" material="gray"/>
+            <geom name="top_plate_visual" class="visual" mesh="top_plate" material="dark_gray"/>
+            <geom name="arm_plate_visual" class="visual" mesh="arm_plate" material="gray"/>
+
+            <!-- 碰撞几何体（5个）：用于物理碰撞计算 -->
+            <geom name="bumper_collision" class="collision" mesh="bumper"/>
+            <geom name="bottom_plate_collision" class="collision" mesh="bottom_plate"/>
+            <geom name="body_collision" class="collision" mesh="body"/>
+            <geom name="top_plate_collision" class="collision" mesh="top_plate"/>
+            <geom name="arm_plate_collision" class="collision" mesh="arm_plate"/>
+        </body>
+    </worldbody>
+
+    <actuator>
+        <!-- NOTE 三个位置控制器（Position Control）： -->
+        <!-- KP（比例增益）：控制响应强度
+                1. X/Y 方向：1,000,000（非常高的刚度，精确位置控制）
+                2. 旋转方向：50,000（相对较低，允许平滑转向）
+             KV（微分增益/阻尼）：抑制振荡
+                1. X/Y 方向：50,000
+                2. 旋转方向：1,000 -->
+        <!-- ps 这种配置使得底盘在平移时非常"硬"（快速响应目标位置），而旋转时相对柔和。 -->
+        <!-- <position name="joint_x" joint="joint_x" kp="1000000" kv="50000"/>
+        <position name="joint_y" joint="joint_y" kp="1000000" kv="50000"/>
+        <position name="joint_th" joint="joint_th" kp="50000" kv="1000"/> -->
+    </actuator>
+</mujoco>

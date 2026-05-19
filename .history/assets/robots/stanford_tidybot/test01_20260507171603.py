@@ -1,0 +1,69 @@
+import mujoco
+import logging
+import mediapy as media
+from termcolor import colored
+
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
+
+def load_model(xml_path):
+    model = mujoco.MjModel.from_xml_path(xml_path)
+    data = mujoco.MjData(model)
+
+    logging.info("Model loaded successfully.")
+
+    return model, data
+
+
+def print_model_attr(model):
+    print("Model attributes:")
+
+    # 查看 model 的属性
+    print(model.ngeom)  # 11
+    print([model.geom(i).name for i in range(model.ngeom)])
+    # [
+    #     "floor",                          # 地面
+    #     "bumper_visual",                  # 保险杠视觉模型
+    #     "bottom_plate_visual",            # 底板视觉模型
+    #     "body_visual",                    # 主体视觉模型
+    #     "top_plate_visual",               # 顶板视觉模型
+    #     "arm_plate_visual",               # 机械臂基板视觉模型
+    #     "bumper_collision",               # 保险杠碰撞模型
+    #     "bottom_plate_collision",         # 底板碰撞模型
+    #     "body_collision",                 # 主体碰撞模型
+    #     "top_plate_collision",            # 顶板碰撞模型
+    #     "arm_plate_collision",            # 机械臂基板碰撞模型
+    # ]
+
+    print(model.nbody)  # 2
+    print([model.body(i).name for i in range(model.nbody)])
+    # ["world", "base_link"]
+
+    print(model.nq)  # 3 - 广义坐标数量（位置自由度）
+    print(model.nv)  # 3 - 广义速度数量（速度自由度）
+    print(model.nlight)  # 1 - 光源数量
+    print(model.ncam)  # 1 - 相机数量
+
+def render_model(model, data):
+
+
+def main():
+    # ? logging.info 和 print 的区别？
+    logging.info(
+        colored(
+            "###### Starting the simulation! ######",
+            "yellow",
+            attrs=["bold"],
+        )
+    )
+
+    xml_path = "assets/robots/stanford_tidybot/scene_base.xml"
+    model, data = load_model(xml_path)
+
+    print_model_attr(model)
+
+
+if __name__ == "__main__":
+    main()

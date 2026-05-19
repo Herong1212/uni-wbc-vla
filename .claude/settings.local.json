@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/home/robot/mujoco-3.4.0/bin/simulate --version)",
+      "Read(//home/robot/mujoco-3.4.0/bin/**)"
+    ]
+  }
+}

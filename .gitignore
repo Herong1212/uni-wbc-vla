@@ -1,0 +1,11 @@
+# caches
+.ipynb_checkpoints/
+.claude/
+.vscode/
+.history/
+
+# checkpoints
+checkpoints/
+
+# outputs
+outputs/

@@ -1,0 +1,33 @@
+<mujoco model="experiment_objects_shared_assets">
+    <!-- 
+        共享资源文件 - 只包含 asset 定义
+        可以被多个场景 include，避免重复定义
+        
+        使用方法：
+        在主场景中: <include file="../../objects/experiment_objects_assets.xml"/>
+    -->
+    
+    <asset>
+        <!-- ==================== 实验物体网格 ==================== -->
+        <mesh file="meshes/can.msh" name="can_mesh"/>
+        <mesh file="meshes/bottle.msh" name="bottle_mesh"/>
+        <mesh file="meshes/cereal.msh" name="cereal_mesh"/>
+        
+        <!-- ==================== 纹理和材质 ==================== -->
+        <texture type="2d" file="../textures/soda.png" name="tex_soda" rgb1="1 1 1"/>
+        <texture type="2d" file="../textures/glass.png" name="tex_glass" rgb1="1 1 1"/>
+        <texture type="2d" file="../textures/cereal.png" name="tex_cereal" rgb1="1 1 1"/>
+        
+        <material name="mat_coke" reflectance="0.7" texrepeat="5 5" texture="tex_soda" texuniform="true"/>
+        <material name="mat_glass_bottle" rgba="0.9 0.9 1.0 0.4" shininess="1" reflectance="0.5"/>
+        <material name="mat_cardboard" rgba="0.8 0.6 0.4 1" shininess="0.1"/>
+    </asset>
+    
+    <!-- 
+        注意：这里不包含 worldbody
+        具体的物体实例应该在主场景中定义，这样可以：
+        1. 避免命名冲突
+        2. 灵活控制位置和属性
+        3. 添加任务特定的配置
+    -->
+</mujoco>

@@ -1,0 +1,51 @@
+<mujoco model="Scanned Objects">
+    <!-- 内存分配：为 MuJoCo 模拟器分配 500MB 内存，用于存储碰撞检测树、接触信息等，复杂场景可增加至 1G 或 2G -->
+    <!-- <size memory="500M"/> -->
+
+    <!-- Default options -->
+    <!-- <compiler angle="radian" assetdir="./tabletop/mesh" autolimits="true" /> -->
+
+    <!-- integrator="RK4"：使用4阶龙格-库塔积分器（精度高，适合精确控制），可选值：Euler（快但不稳）、RK4（平衡）、implicitfast（最快）  -->
+    <!-- noslip_iterations=20：无滑动约束迭代次数，越高越精确但计算越慢，20是经验值 -->
+    <option integrator="RK4" noslip_iterations="20" />
+
+    <default>
+        <!-- armature="0.1"：模拟电机转子惯性，防止动作突变。越大越平滑但响应越慢 -->
+        <!-- damping=0.1: 关节阻尼系数，模拟摩擦和能量耗散。越大运动衰减越快 -->
+        <joint armature="0.1" damping="0.1" />
+
+        <!-- visual_only 类：纯视觉几何体（不参与碰撞）-->
+        <default class="visual_only">
+            <geom type="mesh" contype="0" conaffinity="0" group="2" />
+        </default>
+        <!-- no_visual_collision 类：纯碰撞几何体（不可见） -->
+        <default class="no_visual_collision">
+            <!-- type="capsule": 胶囊体（计算效率高） -->
+            <!-- solimp/solref: 接触求解器参数（刚度/阻尼） -->
+            <geom type="capsule" solimp=".9 .99 .001" solref=".015 1" group="3" />
+        </default>
+        <!-- visual_collision 类：既可见又参与碰撞 -->
+        <default class="visual_collision">
+            <geom type="mesh" solimp=".9 .99 .001" solref=".015 1" group="2" />
+        </default>
+    </default>
+
+    <!-- Sky and floor -->
+    <!-- <include file="./tabletop/object/floor_isaac_style.xml" /> -->
+    <include file="./tabletop/object/floor_mujoco_style.xml" />
+
+    <!-- Table -->
+    <include file="./tabletop/object/object_table.xml" />
+
+    <!-- UR52 -->
+
+
+    <!-- <include file="./robotis_omy/omy.xml" /> -->
+    <!-- <include file="../../robots/stanford_tidybot/tidybot.xml" /> -->
+    <include file="../../robots/ffw_sg2/ffw_sg2.xml" />
+
+    <include file="./objaverse/mug_5/model_new.xml"/>
+    <include file="./objaverse/plate_11/model_new.xml"/>
+    <!-- <include file="./objaverse/mug_6/model_new.xml"/> -->
+
+</mujoco>

@@ -1,0 +1,78 @@
+<mujoco model="tippe top">
+    <!-- 使用四阶龙格-库塔法(Runge-Kutta 4th order) 积分器，精度更高但计算成本略高 -->
+    <option integrator="RK4"/>
+
+    <!-- 定义纹理和材质 -->
+    <asset>
+        <texture name="grid" type="2d" builtin="checker" rgb1=".1 .2 .3" rgb2=".2 .3 .4" width="300" height="300"/>
+        <!-- texrepeat="8 8"：纹理在 UV 方向重复 8 次 -->
+        <!-- reflectance=".2": 反射率为 20%,产生轻微反光效果 --> reflectance=".2": 反射率为 20%,产生轻微反光效果
+        <material name="grid" texture="grid" texrepeat="8 8" reflectance=".2"/>
+    </asset>
+
+    <!-- 设置平均尺寸， meansize=".01" 表示模型的平均尺寸为 1 厘米 -->
+    <statistic meansize=".01"/>
+
+
+    <!-- 视觉设置 -->
+    <visual>
+        <!-- offheight="2160" offwidth="3840": 设置离屏渲染分辨率为 4K (3840 x 2160) -->
+        <global offheight="2160" offwidth="3840"/>
+        <!-- offsamples="s": 抗锯齿采样级别 -->
+        <quality offsamples="8"/>
+    </visual>
+
+    <!-- 默认几何体属性 -->
+    <default>
+        <!-- type="box": 默认几何体类型为盒子(但会被具体 geom 覆盖) -->
+        <!-- solref=".005 1": 接触求解器参数 -->
+        <!-- .005: 时间常数,控制接触的"软度" -->
+        <!-- 1: 阻尼比,值越大越硬 -->
+        <geom type="box" solref=".005 1"/>
+
+        <default class="static">
+            <geom rgba=".3 .5 .7 1"/>
+        </default>
+    </default>
+
+    <!-- 更小的时间步长， timestep="5e-4" = 0.0005 秒 = 0.5 毫秒，提高稳定性-->
+    <option timestep="5e-4"/>
+
+    <!-- 世界主体 -->
+    <worldbody>
+        <!-- 地板 -->
+        <geom size=".2 .2 .01" type="plane" material="grid"/>
+        <!-- 光源 -->
+        <light pos="0 0 .6"/>
+        <!-- 相机视角 -->
+        <!-- xyaxes="1 0 0 0 1 2": 相机的坐标轴方向 -->
+        <!-- 前三个数 (1,0,0): X 轴指向右方 -->
+        <!-- 后三个数 (0,1,2): Y 轴指向上方并倾斜,Z 轴自动计算 -->
+        <!-- 这种配置产生略微俯视的视角 -->
+        <camera name="closeup" pos="0 -.1 .07" xyaxes="1 0 0 0 1 2"/>
+
+        <!-- 陀螺主体，就是指下面那个大球！ -->
+        <body name="top" pos="0 0 .02">
+            <!-- 6DOF 自由关节： 3 个平移(x,y,z) + 3 个旋转(roll,pitch,yaw) -->
+            <freejoint/>
+
+            <!-- 球形几何体。但未指定位置，默认为 body 的原点 (0,0,0) -->
+            <geom name="ball" type="sphere" size=".02" />
+            <!-- 顶部手柄（圆柱形）。圆柱的半径为 0.004 = 4mm, 总高度（从中心向 ±Z 延伸 0.008m ）为 0.008 x 2 = 16mm -->
+            <geom name="stem" type="cylinder" pos="0 0 .02" size="0.004 .008"/>
+            <!-- 底部配置（不可见，降低重心，也就是配重块） -->
+            <geom name="ballast" type="box" size=".023 .023 0.005" pos="0 0 -.015" contype="0" conaffinity="0" group="3"/>
+        </body>
+    </worldbody>
+
+    <!-- 关键帧：定义初始旋转状态 -->
+    <keyframe>
+        <!-- qpos="0 0 0.02 1 0 0 0": 广义位置(7维)，含义如下👇
+            前 3 个值 (0, 0, 0.02): 平移位置 x, y, z
+            后 4 个值 (1, 0, 0, 0): 单位四元数表示的姿态(无旋转) -->
+        <!-- qvel="0 0 0 0 1 200": 广义速度(6维)，含义如下👇
+            前 3 个值 (0, 0, 0): 线速度 vx, vy, vz = 0
+            后 3 个值 (0, 1, 200): 角速度 wx, wy, wz wx=0: 绕 X 轴角速度为 0 wy=1: 绕 Y 轴角速度为 1 rad/s (轻微倾斜) wz=200: 绕 Z 轴角速度为 200 rad/s ≈ 1910 RPM (高速自旋) -->
+        <key name="spinning" qpos="0 0 0.02 1 0 0 0" qvel="0 0 0 0 1 200" />
+    </keyframe>
+</mujoco>

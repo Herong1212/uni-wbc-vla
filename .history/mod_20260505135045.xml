@@ -1,0 +1,59 @@
+<mujoco>
+    <!-- 选项设置: 仿真时间步长为 0.001 秒（1 毫秒）；高精度, 启用能量计算，可以监测系统的动能和势能；禁用碰撞检测，因为摆之间不会相互碰撞，提高仿真效率 -->
+    <option timestep=".001">
+        <flag energy="enable" contact="disable"/>
+    </option>
+
+    <!-- 🎯 新增：视觉配置，设置离屏渲染缓冲区大小 -->
+    <!-- * Mujoco 缓冲区的本质：主要由 <visual> 的 <global> 决定，这两个参数直接控制离屏渲染缓冲区的大小 -->
+    <visual>
+        <global offwidth="1920" offheight="1080"/>
+    </visual>
+
+    <!-- 默认设置 -->
+    <default>
+        <!-- 默认关节类型：铰链，绕 -Y 轴旋转 -->
+        <joint type="hinge" axis="0 -1 0"/>
+        <!-- 默认几何体：胶囊形，半径 2cm -->
+        <geom type="capsule" size=".02"/>
+    </default>
+
+    <worldbody>
+        <!-- 光源位置在 (0, -0.4, 1) 米处，从后上方照射 -->
+        <light pos="0 -.4 1"/>
+        <!-- 固定相机视角，相机位置在 (0, -1, 0)，即正后方 1 米处 -->
+        <!-- xyaxes="1 0 0 0 0 1"：相机坐标轴定义
+                X 轴：(1, 0, 0) → 指向右方
+                Y 轴：(0, 0, 1) → 指向上方
+                Z 轴自动计算为 (0, 1, 0) → 指向前方（看向原点） -->
+        <camera name="fixed" pos="0 -1 0" xyaxes="1 0 0 0 0 1"/>
+
+        <!-- 主摆体 -->
+        <body name="0" pos="0 0 .2">
+            <!-- 根关节 -->
+            <joint name="root"/>
+            <!-- 黄色横杆 -->
+            <geom fromto="-.2 0 0 .2 0 0" rgba="1 1 0 1"/>
+            <!-- 黄色竖杆 -->
+            <geom fromto="0 0 0 0 0 -.25" rgba="1 1 0 1"/>
+
+            <!-- 左侧摆 -->
+            <body name="1" pos="-.2 0 0">
+                <joint/>
+                <geom fromto="0 0 0 0 0 -.2" rgba="1 0 0 1"/>
+            </body>
+
+            <!-- 右侧摆 -->
+            <body name="2" pos=".2 0 0">
+                <joint/>
+                <geom fromto="0 0 0 0 0 -.2" rgba="0 1 0 1"/>
+            </body>
+
+            <!-- 底部摆 -->
+            <body name="3" pos="0 0 -.25">
+                <joint/>
+                <geom fromto="0 0 0 0 0 -.2" rgba="0 0 1 1"/>
+            </body>
+        </body>
+    </worldbody>
+</mujoco>

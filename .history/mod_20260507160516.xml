@@ -1,0 +1,8 @@
+<mujoco>
+    <worldbody>
+        <!-- red_box 未指定 pos 属性 → 默认为 [0, 0, 0]（世界原点） -->
+        <geom name="red_box" type="box" size=".2 .2 .2" rgba="1 0 0 1"/>
+        <!-- green_sphere 未指定 type 属性 → 默认为 "sphere"（球体） -->
+        <geom name="green_sphere" pos=".2 .2 .2" size=".1" rgba="0 1 0 1"/>
+    </worldbody>
+</mujoco>

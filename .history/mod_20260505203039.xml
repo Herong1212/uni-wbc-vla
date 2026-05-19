@@ -1,0 +1,26 @@
+<mujoco>
+    <asset>
+        <texture name="grid" type="2d" builtin="checker" rgb1=".1 .2 .3" rgb2=".2 .3 .4" width="300" height="300" mark="edge" markrgb=".2 .3 .4"/>
+        <material name="grid" texture="grid" texrepeat="2 2" texuniform="true" reflectance=".2"/>
+    </asset>
+
+    <worldbody>
+        <!-- 跟踪质心的光源 -->
+        <light pos="0 0 1" mode="trackcom"/>
+        <!-- ps 地面，带接触参数 -->
+        <geom name="ground" type="plane" pos="0 0 -.5" size="2 2 .1" material="grid" solimp=".99 .99 .01" solref=".001 1"/>
+
+        <!-- 自由运动的盒子和球体 -->
+        <body name="box_and_sphere" pos="0 0 0">
+            <freejoint/>
+
+            <!-- 红色盒子，带接触参数 -->
+            <geom name="red_box" type="box" size=".1 .1 .1" rgba="1 0 0 1" solimp=".99 .99 .01" solref=".001 1"/>
+            <!-- 绿色球体 -->
+            <geom name="green_sphere" size=".06" pos=".1 .1 .1" rgba="0 1 0 1"/>
+            <!-- 固定相机视角 -->            
+            <camera name="fixed" pos="0 -.6 .3" xyaxes="1 0 0 0 1 2"/>
+            <camera name="track" pos="0 -.6 .3" xyaxes="1 0 0 0 1 2" mode="track"/>
+        </body>
+    </worldbody>
+</mujoco>
