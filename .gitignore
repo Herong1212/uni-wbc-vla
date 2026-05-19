@@ -9,3 +9,6 @@ checkpoints/
 
 # outputs
 outputs/
+
+# env
+.env
