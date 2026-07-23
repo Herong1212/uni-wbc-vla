@@ -3,6 +3,7 @@
 .claude/
 .vscode/
 .history/
+__pycache__/
 
 # checkpoints
 checkpoints/
