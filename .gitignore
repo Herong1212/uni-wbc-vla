@@ -1,7 +1,7 @@
 # caches
 .ipynb_checkpoints/
-.claude/
-.vscode/
+# .claude/
+# .vscode/
 .history/
 __pycache__/
 
