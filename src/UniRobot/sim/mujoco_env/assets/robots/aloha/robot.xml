@@ -1,36 +1,200 @@
+<!-- ============================================================================
+     ALOHA 双臂机器人 MuJoCo 模型 —— 详细中文注释版
+     ----------------------------------------------------------------------------
+     本模型主体为两台 Trossen ViperX 300s(简称 vx300s)六自由度机械臂,
+     左右镜像安装在同一基座上,形成 ALOHA 双臂遥操作系统。
+
+     关节结构(每臂 6 个旋转关节):
+       waist(腰部) -> shoulder(肩部) -> elbow(肘部)
+       -> forearm_roll(前臂滚动) -> wrist_angle(腕部俯仰) -> wrist_rotate(腕部自转)
+     每根手臂的完整运动链:
+       base
+       +-- right/left_arm_mount(安装座)
+       |   +-- shoulder_link             [关节: waist       ]
+       |       +-- upper_arm_link        [关节: shoulder    ]
+       |           +-- upper_forearm_link[关节: elbow       ]
+       |               +-- lower_forearm_link [关节: forearm_roll]
+       |                   +-- wrist_link    [关节: wrist_angle  ]
+       |                       +-- gripper_link [关节: wrist_rotate]
+       |                           +-- hand(相机载体)
+     ============================================================================ -->
+
+<!-- mujoco 根标签:声明一个 MuJoCo 模型,所有内容必须放在此标签内。
+     model="aloha": 模型名称,用于标识、日志与错误提示 -->
 <mujoco model="aloha">
+    <!-- ==========================================================================
+         compiler(编译器)与 option(全局仿真选项)示例。
+         以下两段被注释掉,表示模型使用 MuJoCo 的默认编译/仿真设置。
+         若需要可取消注释启用:
+         --------------------------------------------------------------------------
+         compiler 标签:控制 XML 模型如何被编译。
+           angle="radian"   : 指定角度一律使用弧度(rad)为单位。
+                             弧度本就是 MuJoCo 默认值,因此通常可省略。
+           autolimits="true": 自动限位。开启后,MuJoCo 会用 joint 的 range
+                             自动推导部分参数(如当位置执行器未显式写
+                             ctrlrange 时,会用关节 range 作为默认)。
+         --------------------------------------------------------------------------
+         option 标签:设置全局数值求解器选项,影响所有接触/约束的求解。
+           cone="elliptic" : 摩擦锥类型为"椭圆"(其余选项为 pyramidal 棱锥)。
+                             椭圆摩擦锥更精确、各向同性,但计算量更大。
+           impratio="10"   : implicit ratio(隐式比例)。
+                             约束求解中隐式积分相对显式积分的权重,
+                             值越大接触/约束越"硬"、越不易穿透,10 为常见推荐值。
+         ========================================================================== -->
     <!-- <compiler angle="radian" autolimits="true" />
 	<option cone="elliptic" impratio="10" />
      -->
+
+    <!-- ==========================================================================
+         default 标签:定义可继承的"默认类"(class)集合。
+         工作原理:default 内部的 <default class="xxx"> 声明一个命名默认类,
+         模型中的 <joint>/<geom>/<actuator> 通过 class="xxx" 引用它,
+         从而继承其中定义的所有参数;具体标签可再单独覆盖(override)同名参数。
+         这避免了在大量关节/几何体上重复书写相同参数。
+         ========================================================================== -->
     <default>
+        <!-- 默认类 vx300s:整个 vx300s 手臂所有关节的公共默认参数。
+             凡是没有更具体默认类的关节,都会先继承这里的设置。 -->
         <default class="vx300s">
+            <!-- joint 标签定义关节的默认属性。
+                 axis="0 1 0"        : 关节旋转轴方向(在父体坐标系中),此处为
+                                       绕 Y 轴旋转(俯仰类关节的标准轴向)。
+                 actuatorfrcrange="-35 35":
+                                       执行器作用在该关节上的最大力矩范围,
+                                       即该关节允许施加的力矩为 -35 ~ 35 N·m。
+                                       超出该范围的外力无法由执行器抵抗。 -->
             <joint axis="0 1 0" actuatorfrcrange="-35 35" />
+            <!-- site 标签:默认标记点分组(被注释,表示不改变 site 默认 group=0)
+                 group="1": 若启用,则所有 site 默认渲染分组为 1 -->
             <!-- <site group="1" /> -->
         </default>
+
+        <!-- 默认类 waist:腰部旋转关节(绕竖直 Z 轴转动)。 -->
         <default class="waist">
+            <!-- joint 参数:
+                 axis="0 0 1"          : 旋转轴为 Z 轴,即绕竖直方向旋转,实现"腰"的回转。
+                 range="-3.14158 3.14158":
+                                       关节转动范围 ±π,约 ±180°。
+                 limited="true"        : 启用关节限位,转动角被限制在 range 之内
+                                         (若为 false 则 range 仅用于自动限位类派生)。
+                 damping="0.1"         : 关节阻尼(速度线性阻尼),
+                                        单位 N·m·s/rad,抵抗关节转动速度,模拟
+                                        电机/减速箱内部的粘滞阻力,并帮助仿真稳定。 -->
             <joint axis="0 0 1" range="-3.14158 3.14158" limited="true" damping="0.1"/>
+            <!-- position 标签:声明该默认类执行器为"位置控制"类型。
+                 位置执行器通过比例(P)控制把关节驱动到目标角度。
+                 ctrlrange="-3.14158 3.14158":
+                                       控制信号(即目标位置)的范围 ±π。
+                 kp="43"               : 位置控制的比例增益(刚度系数),
+                                        单位 N·m/rad。角度误差每 1 rad 产生 43 N·m 力矩。 -->
             <position ctrlrange="-3.14158 3.14158" kp="43" />
         </default>
+
+        <!-- 默认类 shoulder:肩部关节(绕 Y 轴前后摆动,决定大臂抬升/落下)。 -->
         <default class="shoulder">
+            <!-- joint 参数:
+                 axis="0 1 0"          : 旋转轴为 Y 轴(俯仰摆动)。
+                 range="-1.85005 1.25664":
+                                       活动范围约 -106° ~ +72°。
+                 armature="0.01"       : 转子惯量(armature),单位 kg·m²。
+                                       这是电机转子/减速箱的等效转动惯量,
+                                       会被叠加到连杆自身惯量上,用于更真实地
+                                       模拟电机驱动、并提高仿真数值稳定性。
+                 frictionloss="0.1"    : 关节固有摩擦(库仑摩擦),单位 N·m。
+                                       无论是否运动都存在、方向始终与运动相反,
+                                       模拟减速箱/轴承的恒定摩擦力矩。
+                 limited="true"        : 启用限位。
+                 damping="20.0"        : 阻尼系数 20 N·m·s/rad(肩部负载大,阻尼较强)。
+                 actuatorfrcrange="-144 144":
+                                       最大驱动力矩 ±144 N·m(肩部是大力矩关节)。 -->
             <joint axis="0 1 0" range="-1.85005 1.25664" armature="0.01" frictionloss="0.1" limited="true" damping="20.0" actuatorfrcrange="-144 144" />
+            <!-- position 执行器参数:
+                 ctrlrange 与关节 range 一致:目标位置范围约 -106° ~ +72°。
+                 kp="265"              : 刚度增益 265 N·m/rad,肩部控制较强。 -->
             <position ctrlrange="-1.85005 1.25664" kp="265" />
         </default>
+
+        <!-- 默认类 elbow:肘部关节(绕 Y 轴弯曲小臂)。 -->
         <default class="elbow">
+            <!-- joint 参数:
+                 axis="0 1 0"          : Y 轴旋转。
+                 range="-1.76278 1.6057": 活动范围约 -101° ~ +92°。
+                 armature="0.01"       : 转子惯量 0.01 kg·m²。
+                 frictionloss="0.1"    : 恒定摩擦 0.1 N·m。
+                 limited="true"        : 启用限位。
+                 damping="18.49"       : 阻尼 18.49 N·m·s/rad。
+                 actuatorfrcrange="-59 59":
+                                       最大力矩 ±59 N·m(肘部力矩小于肩部)。 -->
             <joint axis="0 1 0" range="-1.76278 1.6057" armature="0.01" frictionloss="0.1" limited="true" damping="18.49" actuatorfrcrange="-59 59" />
+            <!-- position 执行器参数:
+                 ctrlrange:目标位置范围与关节 range 一致。
+                 kp="227"              : 刚度增益 227 N·m/rad。 -->
             <position ctrlrange="-1.76278 1.6057" kp="227" />
         </default>
+
+        <!-- 默认类 forearm_roll:前臂滚动关节(沿手臂轴线 X 方向自转,
+             使前臂/手腕可以绕自身轴线旋转)。 -->
         <default class="forearm_roll">
+            <!-- joint 参数:
+                 axis="1 0 0"          : 旋转轴为 X 轴(沿前臂长度方向)。
+                 range="-3.14158 3.14158": 活动范围 ±180°(可整圈自转)。
+                 armature="0.01"       : 转子惯量 0.01 kg·m²。
+                 limited="true"        : 启用限位。
+                 damping="0.1"         : 阻尼很小(0.1),滚动关节阻力小。
+                 actuatorfrcrange="-22 22":
+                                       最大力矩 ±22 N·m(滚动关节力矩较小)。 -->
             <joint axis="1 0 0" range="-3.14158 3.14158" armature="0.01" limited="true" damping="0.1" actuatorfrcrange="-22 22" />
+            <!-- position 执行器参数:
+                 ctrlrange:±180°。 kp="78": 刚度 78 N·m/rad。 -->
             <position ctrlrange="-3.14158 3.14158" kp="78" />
         </default>
+
+        <!-- 默认类 wrist_angle:腕部俯仰关节(绕 Y 轴,使末端上下摆动)。 -->
         <default class="wrist_angle">
+            <!-- joint 参数:
+                 axis="0 1 0"          : Y 轴旋转。
+                 range="-1.8675 2.23402": 活动范围约 -107° ~ +128°。
+                 armature="1.0"        : 转子惯量 1.0 kg·m²(腕部电机惯量较大,
+                                        反映腕部电机/减速箱经过紧凑布置后的等效惯量)。
+                 limited="true"        : 启用限位。
+                 damping="0.1"         : 阻尼 0.1 N·m·s/rad。
+                 注意:此处未写 actuatorfrcrange,故继承 vx300s 默认类的
+                 -35 ~ 35 N·m 力矩范围。 -->
             <joint axis="0 1 0" range="-1.8675 2.23402" armature="1.0" limited="true" damping="0.1" />
+            <!-- position 执行器参数:
+                 ctrlrange:目标位置范围 -107° ~ +128°。
+                 kp="37"               : 刚度仅 37 N·m/rad,腕部控制较柔。 -->
             <position ctrlrange="-1.8675 2.23402" kp="37" />
         </default>
+
+        <!-- 默认类 wrist_rotate:腕部自转关节(绕 X 轴,使末端工具绕自身轴线旋转)。 -->
         <default class="wrist_rotate">
+            <!-- joint 参数:
+                 axis="1 0 0"          : X 轴(沿手腕伸出方向)自转。
+                 range="-3.14158 3.14158": ±180°。
+                 limited="true"        : 启用限位。
+                 damping="0.1"         : 阻尼 0.1 N·m·s/rad。
+                 armature="1.0"        : 转子惯量 1.0 kg·m²。 -->
             <joint axis="1 0 0" range="-3.14158 3.14158" limited="true" damping="0.1" armature="1.0"/>
+            <!-- position 执行器参数:
+                 ctrlrange:±180°。 kp="10.4": 刚度仅 10.4 N·m/rad,自转控制很柔,
+                 避免末端抖动。 -->
             <position ctrlrange="-3.14158 3.14158" kp="10.4" />
         </default>
+
+        <!-- 以下手指(finger)默认类整段被注释,表示原始 vx300s 的夹爪
+             关节/几何体未启用(ALOHA 版本使用外置夹爪或纯视觉末端)。
+             (若启用可参考如下含义:)
+               joint type="slide"           : 滑动关节(直线平移),模拟夹爪开合。
+                    armature="0.243"        : 转子惯量 0.243 kg·m²。
+                    limited="true"          : 启用限位。
+                    damping="0.1"           : 阻尼 0.1。
+               position ctrlrange="0.002 0.037":
+                                            : 夹爪开合位置范围 2mm ~ 37mm。
+                    kp="2000"               : 刚度 2000 N·m/rad(夹爪抓取刚度很大)。
+                    kv="124"                : 速度增益(阻尼)124,提供夹爪运动阻尼。
+               left_finger / right_finger   : 左右手指各自关节范围 0 ~ 0.041m,
+                     axis="0 0 -1"          : 沿 -Z 方向开合。 -->
         <!-- <default class="finger">
         <joint type="slide" armature="0.243" limited="true" damping="0.1" />
         <position ctrlrange="0.002 0.037" kp="2000" kv="124" />
@@ -41,81 +205,302 @@
         <default class="right_finger">
           <joint range="0 0.041" axis="0 0 -1" limited="true" damping="0.1" />
         </default> -->
+
+        <!-- 默认类 visual:所有"视觉网格"几何体的默认参数。
+             视觉几何体只负责外观渲染,不参与物理/碰撞/动力学。 -->
         <default class="visual">
+            <!-- geom 标签定义几何体的默认属性。
+                 type="mesh"      : 使用外部网格模型作为几何形状。
+                 contype="0"      : 碰撞类型(collision type)= 0。
+                                    0 表示不属于任何碰撞类别,即不参与碰撞检测。
+                 conaffinity="0"  : 碰撞亲和性(collision affinity)= 0。
+                                    0 表示不与任何碰撞类型发生接触。
+                                    与 contype=0 配合,彻底禁用该几何体的碰撞。
+                 density="0"      : 密度为 0。几何体不贡献质量/惯量
+                                    (质量完全由 <inertial> 标签显式给出)。
+                 group="1"        : 渲染分组为 1。group 0 是默认物理组,
+                                    group 1 通常用于"视觉/附加"渲染层,
+                                    可在 MuJoCo 查看器中按分组开关显示。
+                 material="black" : 指定使用 asset 中名为 black 的材质。 -->
             <geom type="mesh" contype="0" conaffinity="0" density="0" group="1" material="black" />
         </default>
+
+        <!-- 默认类 collision:所有"碰撞网格"几何体的默认参数。
+             碰撞几何体参与物理接触计算(用于关节限位、与环境的碰撞等)。 -->
         <default class="collision">
+            <!-- geom 参数:
+                 group="0"   : 渲染分组 0(默认组),与 visual 组分开,
+                               便于在查看器中单独开关碰撞体显示。
+                 type="mesh" : 使用外部网格模型作为碰撞外形。 -->
             <geom group="0" type="mesh" />
         </default>
+
+        <!-- 默认类 finger_collision:夹爪/手指碰撞几何体专用的接触参数。
+             这些参数决定接触求解器如何处理接触力。 -->
         <default class="finger_collision">
+            <!-- geom 参数:
+                 condim="4"         : 接触维度 = 4。接触力由 1 个法向分量 +
+                                      2 个切向(滑动摩擦)分量 + 1 个扭转(torsion)
+                                      分量组成,用于精细模拟夹爪抓取时的摩擦接触。
+                 solimp="2 1 0.01"  : 接触阻抗参数(dmin, dmax, width)。
+                                      - dmin=2   : 最小穿透深度处对应的刚度系数(较大值=更硬);
+                                      - dmax=1   : 最大穿透深度处刚度系数;
+                                      - width=0.01: 刚度从 dmin 过渡到 dmax 对应的
+                                                    穿透深度范围(米),越小过渡越陡。
+                 solref="0.01 1"    : 接触参考参数(timeconst, dampratio)。
+                                      - timeconst=0.01: 接触力建立的时间常数(秒),
+                                                        越小接触越"硬"、收敛越快;
+                                      - dampratio=1   : 阻尼比,1 为临界阻尼,
+                                                        接触无过冲且快速稳定。
+                 friction="1 0.005 0.0001":
+                                      摩擦系数三元组(滑动, 扭转, 滚动)。
+                                      - 1     : 滑动摩擦系数(μ_slide),最常见;
+                                      - 0.005 : 扭转(torsional)摩擦系数;
+                                      - 0.0001: 滚动(rolling)摩擦系数。 -->
             <geom condim="4" solimp="2 1 0.01" solref="0.01 1" friction="1 0.005 0.0001" />
         </default>
+
+        <!-- 默认类 sphere_collision:微型球体碰撞体(通常用于手指尖端等
+             小面积接触点,提供稳定的点接触)。 -->
         <default class="sphere_collision">
+            <!-- geom 参数:
+                 type="sphere"      : 球体几何。
+                 size="0.0006"      : 球半径 0.0006 m = 0.6 mm(极小的指尖接触球)。
+                 rgba="1 0 0 1"     : 渲染颜色,红色不透明(R=1,G=0,B=0,A=1),
+                                      便于在查看器中识别。 -->
             <geom type="sphere" size="0.0006" rgba="1 0 0 1" />
         </default>
     </default>
 
+    <!-- ==========================================================================
+         asset 标签:声明模型使用的所有资源,如材质(material)、网格(mesh)、
+         纹理(texture)等。此处定义名称后即可在模型各处按 name 引用。
+         ========================================================================== -->
     <asset>
+        <!-- material 标签:材质定义。
+             name="black"           : 材质名称,供 geom 的 material 属性引用。
+             rgba="0.15 0.15 0.15 1": 颜色 = 深灰黑(R=G=B=0.15),不透明(A=1),
+                                      即 vx3005 手臂的主色调。 -->
         <material name="black" rgba="0.15 0.15 0.15 1" />
+
+        <!-- mesh 标签组:网格模型资源。
+             name                  : 网格名称,供 geom 的 mesh 属性引用。
+             file="meshes/xxx.stl" : 网格文件路径(相对本 XML 文件的 meshes 目录),
+                                     格式为 STL(三角面片网格)。
+             scale="0.001 0.001 0.001":
+                                     网格缩放 0.001,即把 STL 中 1 个单位 = 1 mm
+                                     换算为 MuJoCo 使用的 1 m(标准 SI 单位)。
+                                     因此实际模型尺寸 = STL 尺寸 × 0.001。
+             ----------------------------------------------------------------------
+             各网格对应 vx300s 机械臂的机械零件:
+               vx300s_1_base          : 底座(含安装孔)
+               vx300s_2_shoulder      : 肩部壳体
+               vx300s_3_upper_arm     : 上臂
+               vx300s_4_upper_forearm : 上前臂(肘部到前臂)
+               vx300s_5_lower_forearm : 下前臂
+               vx300s_6_wrist         : 手腕壳体 -->
         <mesh name="vx300s_1_base" file="meshes/vx300s_1_base.stl" scale="0.001 0.001 0.001" />
         <mesh name="vx300s_2_shoulder" file="meshes/vx300s_2_shoulder.stl" scale="0.001 0.001 0.001" />
         <mesh name="vx300s_3_upper_arm" file="meshes/vx300s_3_upper_arm.stl" scale="0.001 0.001 0.001" />
         <mesh name="vx300s_4_upper_forearm" file="meshes/vx300s_4_upper_forearm.stl" scale="0.001 0.001 0.001" />
         <mesh name="vx300s_5_lower_forearm" file="meshes/vx300s_5_lower_forearm.stl" scale="0.001 0.001 0.001" />
         <mesh name="vx300s_6_wrist" file="meshes/vx300s_6_wrist.stl" scale="0.001 0.001 0.001" />
+
+        <!-- 被注释的夹爪网格(vx300s 原装夹爪零件),以及 Intel RealSense D405
+             深度相机外壳网格。本模型未启用这些零件/相机。 -->
         <!-- <mesh name="vx300s_7_gripper_prop" file="meshes/vx300s_7_gripper_prop.stl" />
 		<mesh name="vx300s_7_gripper_bar" file="meshes/vx300s_7_gripper_bar.stl" />
 		<mesh name="vx300s_7_gripper_wrist_mount" file="meshes/vx300s_7_gripper_wrist_mount.stl" /> -->
         <!-- <mesh name="d405_solid" file="meshes/d405_solid.stl" /> -->
 
+        <!-- 被注释的纹理/地面材质(原版环境装饰,模型本身不启用):
+             texture type="skybox"   : 天空盒渐变背景纹理
+                  builtin="gradient" : 内置渐变类型
+                  rgb1/rgb2          : 渐变起始/结束颜色
+                  width/height       : 纹理像素尺寸
+             texture type="2d"       : 2D 棋盘格地面纹理
+                  builtin="checker"  : 棋盘格
+                  mark="edge"        : 边缘标记
+                  markrgb            : 标记颜色
+             material name="groundplane": 使用上述纹理的地面材质
+                  texuniform="true"  : 纹理均匀(不随物体缩放拉伸)
+                  texrepeat="5 5"    : 纹理重复 5x5 次
+                  reflectance="0.2"  : 反射率 0.2 -->
         <!-- <texture type="skybox" builtin="gradient" rgb1="0.3 0.5 0.7" rgb2="0 0 0" width="512" height="3072"/>
 		<texture type="2d" name="groundplane" builtin="checker" mark="edge" rgb1="0.2 0.3 0.4" rgb2="0.1 0.2 0.3" markrgb="0.8 0.8 0.8" width="300" height="300"/>
 		<material name="groundplane" texture="groundplane" texuniform="true" texrepeat="5 5" reflectance="0.2"/>		 -->
     </asset>
 
+    <!-- ==========================================================================
+         worldbody 标签:世界坐标系下的刚体(rigid body)树。
+         MuJoCo 用层级 body 树描述机器人运动链;每个 body 有位置/姿态、
+         可选的惯性、几何体、关节,并可嵌套子 body。这里 tree 根部即世界。
+         ========================================================================== -->
     <worldbody>
+        <!-- 被注释的光照与地面:
+             light:点/方向光,pos 位置,dir 方向,directional=true 平行光。
+             geom type="plane" : 无限大平面作为地面,size="0 0 0.05" 表示厚度。 -->
         <!-- <light pos="0 0 3.5" dir="0 0 -1" directional="true"/>
     	<geom name="floor" size="0 0 0.05" type="plane" material="groundplane"/> -->
+
+        <!-- body 标签:定义一个刚体。
+             name="base"      : 刚体名称 = "base"(机器人基座)。
+             pos="0 0 -0.1"   : 基座位置(相对世界原点)向 Z 轴负方向下沉 0.1m,
+                                使机器人底盘嵌入地面/桌面 0.1m,保证安装稳定。
+             quat="0.7071068 0 0 0.7071068":
+                               姿态四元数(w, x, y, z)。该值 = 绕 Z 轴旋转 90°,
+                               使机器人横向(X 方向)布置左右双臂。 -->
         <body name="base" pos="0 0 -0.1" quat="0.7071068 0 0 0.7071068">
+            <!-- inertial 标签:定义刚体的质量与惯性张量(动力学属性)。
+                 pos="0 0 0"        : 质心位置(相对 body 原点)=(0,0,0)。
+                 mass="10"          : 质量 10 kg。
+                 diaginertia="0 0 0": 对角惯性张量(Ixx, Iyy, Izz)全为 0,
+                                       表示基座只作为运动学锚点、不参与旋转动力学
+                                       (固定基座无需真实惯量)。 -->
             <inertial pos="0 0 0" mass="10" diaginertia="0 0 0" />
+            <!-- 被注释的相机:操作员视角/合作者视角(用于遥操作可视化)。 -->
             <!-- <camera name="teleoperator_pov" pos="0 -1.354 0.685" xyaxes="1 0 0 0 0.2 .8" />
 		<camera name="collaborator_pov" pos="0 1.5 0.8" xyaxes="-1 0 0 0 -0.2 .8" />	 -->
-            <!-- Right arm -->
+
+            <!-- ================== 右臂(Right arm)================== -->
+            <!-- body 右臂安装座:
+                 name="right_arm_mount"
+                 pos="-0.469 -0.019 0.0": 相对 base 原点位于 x=-0.469m(左侧),
+                                           y=-0.019m(略偏后), z=0。
+                                           注意:base 已绕 Z 转 90°,因此在该
+                                           坐标系下 x 方向对应机器人前方/侧向布局。
+                                           负 x 使右臂位于机器人一侧。 -->
             <body name="right_arm_mount" pos="-0.469 -0.019 0.0">
+                <!-- site 标签:标记点(参考系/可视化节点),不参与动力学。
+                     name="right_center": 名称,用于程序或控制器引用。
+                     pos="0 0 0"         : 位置 = 安装座原点。
+                     size="0.01"         : 显示点大小 0.01m。
+                     rgba="1 0.3 0.3 1"  : 淡红颜色。
+                     group="2"           : 渲染分组 2 -->
                 <site name="right_center" pos="0 0 0" size="0.01" rgba="1 0.3 0.3 1" group="2"/>
+                <!-- inertial:安装座的质量/惯量。
+                     pos="-0.0534774 -0.000562575 0.0205961": 质心偏移。
+                     quat="...": 惯性主轴姿态四元数。
+                     mass="3"  : 质量 3 kg。
+                     diaginertia="0.0071633 0.00602451 0.00169819":
+                                 对角惯性 Ixx/Iyy/Izz,单位 kg·m²。 -->
                 <inertial pos="-0.0534774 -0.000562575 0.0205961" quat="-0.00292324 0.712517 0.00480387 0.701633" mass="3" diaginertia="0.0071633 0.00602451 0.00169819" />
+                <!-- geom 视觉网格:底座外观,class="visual" 继承视觉参数
+                     (不碰撞、密度 0、分组 1、黑色材质)。
+                     quat="1 0 0 1": 四元数(自动归一化后 = 绕 Z 轴 90°),
+                                     调整网格朝向以匹配坐标系。 -->
                 <geom quat="1 0 0 1" class="visual" mesh="vx300s_1_base" />
+                <!-- geom 碰撞网格:同一底座网格用于物理碰撞,class="collision"。 -->
                 <geom quat="1 0 0 1" mesh="vx300s_1_base" class="collision" />
+
+                <!-- body 肩部连杆:
+                     name="right/shoulder_link"
+                     pos="0 0 0.079": 相对安装座沿 Z 轴上升 0.079m,
+                                      即肩部关节位于底座上方 79mm 处。 -->
                 <body name="right/shoulder_link" pos="0 0 0.079">
+                    <!-- inertial:肩部连杆惯量。 -->
                     <inertial pos="0.000259233 -3.3552e-06 0.0116129" quat="-0.476119 0.476083 0.52279 0.522826" mass="2" diaginertia="0.00120156 0.00113744 0.0009388" />
+                    <!-- joint 标签:定义 body 相对其父体的可运动自由度。
+                         name="right/waist": 关节名称 = "right/waist"
+                                              (斜杠用于分组命名,便于程序按前缀索引)。
+                         class="waist"     : 继承 waist 默认类
+                                              (Z 轴旋转、±180°、阻尼 0.1、
+                                              位置执行器 ctrlrange/kp=43)。
+                         damping="5.76"    : 覆盖(override)默认类中的阻尼为 5.76。
+                                             腰部实际阻尼 5.76 N·m·s/rad。 -->
                     <joint name="right/waist" class="waist" damping="5.76" />
+                    <!-- geom 视觉网格:肩部壳体。 pos 微调居中。 -->
                     <geom pos="0 0 -0.003" quat="1 0 0 1" class="visual" mesh="vx300s_2_shoulder" />
+                    <!-- geom 碰撞网格:肩部壳体碰撞体。 -->
                     <geom pos="0 0 -0.003" quat="1 0 0 1" mesh="vx300s_2_shoulder" class="collision" />
+
+                    <!-- body 上臂连杆:
+                         name="right/upper_arm_link"
+                         pos="0 0 0.04805": 相对肩部沿 Z 上升 48.05mm。 -->
                     <body name="right/upper_arm_link" pos="0 0 0.04805">
+                        <!-- inertial:上臂惯量。 -->
                         <inertial pos="0.0206949 4e-10 0.226459" quat="0 0.0728458 0 0.997343" mass="2" diaginertia="0.00911338 0.008925 0.000759317" />
+                        <!-- joint right/shoulder:肩部俯仰关节,继承 shoulder 类
+                             (Y 轴、-106°~72°、armature 0.01、limiting、
+                              damp 20、frcrange ±144、kp 265)。 -->
                         <joint name="right/shoulder" class="shoulder" />
                         <geom quat="1 0 0 1" class="visual" mesh="vx300s_3_upper_arm" />
                         <geom quat="1 0 0 1" class="collision" mesh="vx300s_3_upper_arm" />
+
+                        <!-- body 上前臂连杆:
+                             name="right/upper_forearm_link"
+                             pos="0.05955 0 0.3": 相对上臂位移为
+                               x=59.55mm(沿上臂长度方向), z=300mm(抬升),
+                               形成肘部以下的延伸段。 -->
                         <body name="right/upper_forearm_link" pos="0.05955 0 0.3">
+                            <!-- inertial:上前臂惯量。 -->
                             <inertial pos="0.105723 0 0" quat="-0.000621631 0.704724 0.0105292 0.709403" mass="2" diaginertia="0.00144107 0.00134228 0.000152047" />
+                            <!-- joint right/elbow:肘部关节,继承 elbow 类
+                                 (Y 轴、-101°~92°、armature 0.01、摩擦 0.1、
+                                  damp 18.49、frcrange ±59、kp 227)。 -->
                             <joint name="right/elbow" class="elbow" />
                             <geom class="visual" mesh="vx300s_4_upper_forearm" />
                             <geom class="collision" mesh="vx300s_4_upper_forearm" />
+
+                            <!-- body 下前臂连杆:
+                                 name="right/lower_forearm_link"
+                                 pos="0.2 0 0": 沿 X 方向前伸 200mm。 -->
                             <body name="right/lower_forearm_link" pos="0.2 0 0">
+                                <!-- inertial:下前臂惯量。 -->
                                 <inertial pos="0.0513477 0.00680462 0" quat="-0.702604 -0.0796724 -0.702604 0.0796724" mass="2" diaginertia="0.0005911 0.000546493 0.000155707" />
+                                <!-- joint right/forearm_roll:前臂自转关节,
+                                     继承 forearm_roll 类(X 轴、±180°、
+                                     armature 0.01、damp 0.1、frcrange ±22、kp 78)。 -->
                                 <joint name="right/forearm_roll" class="forearm_roll" />
+                                <!-- geom quat="0 1 0 0":四元数(归一化后
+                                      = 绕 Y 轴旋转 180°),将网格翻转以匹配
+                                      下前臂的安装方向。 -->
                                 <geom quat="0 1 0 0" class="visual" mesh="vx300s_5_lower_forearm" />
                                 <geom quat="0 1 0 0" class="collision" mesh="vx300s_5_lower_forearm" />
+
+                                <!-- body 腕部连杆:
+                                     name="right/wrist_link"
+                                     pos="0.1 0 0": 继续沿 X 前伸 100mm。 -->
                                 <body name="right/wrist_link" pos="0.1 0 0">
+                                    <!-- inertial:腕部连杆惯量(mass=1.5)。 -->
                                     <inertial pos="0.046743 -7.6652e-06 0.010565" quat="-0.00100191 0.544586 0.0026583 0.8387" mass="1.5" diaginertia="5.45707e-05 4.63101e-05 4.32692e-05" />
+                                    <!-- joint right/wrist_angle:腕俯仰关节,
+                                         继承 wrist_angle 类(Y 轴、-107°~128°、
+                                         armature 1.0、damp 0.1、kp 37)。 -->
                                     <joint name="right/wrist_angle" class="wrist_angle" />
                                     <geom quat="1 0 0 1" class="visual" mesh="vx300s_6_wrist" />
                                     <geom quat="1 0 0 1" class="collision" mesh="vx300s_6_wrist" />
+
+                                    <!-- body 末端(夹爪安装)连杆:
+                                         name="right/gripper_link"
+                                         pos="0.069744 0 0": 继续前伸 69.744mm。 -->
                                     <body name="right/gripper_link" pos="0.069744 0 0">
+                                        <!-- joint right/wrist_rotate:腕自转关节,
+                                             继承 wrist_rotate 类(X 轴、±180°、
+                                             armature 1.0、damp 0.1、kp 10.4)。 -->
                                         <joint name="right/wrist_rotate" class="wrist_rotate"/>
+                                        <!-- site right/gripper:夹爪末端参考点,
+                                             pos="0.15 0 0" 位于前方 150mm,
+                                             是控制器/数据采集常用的末端坐标系原点,
+                                             group="1" 渲染分组 1。 -->
                                         <site name="right/gripper" pos="0.15 0 0" group="1"/>
+                                        <!-- body right_hand:末端"手"(相机/夹爪载体)。
+                                             euler="0 1.57 -1.57":姿态欧拉角(弧度,
+                                             顺序 XYZ)= 绕 X 0、绕 Y 90°、绕 Z -90°,
+                                             使相机坐标系朝向期望的观察方向。
+                                             pos="0.035 0 0": 再前伸 35mm。 -->
                                         <body name="right_hand" euler="0 1.57 -1.57" pos="0.035 0 0">
+                                            <!-- inertial:末端"手"(相机等附件)的惯量。 -->
                                             <inertial pos="0.000182154 -0.0341589 -0.0106026" quat="0.435286 0.557074 -0.551539 0.442718" mass="0.42158" diaginertia="0.00110438 0.000790537 0.000469727"/>
+                                            <!-- camera 标签:定义相机(渲染/观测)。
+                                                 name="wrist_cam_right": 右手腕相机。
+                                                 pos="0 -0.0824748 -0.0095955":
+                                                      相机位置(相对 right_hand 原点)。
+                                                 fovy="58"      : 垂直视场角 58°。
+                                                 mode="fixed"   : 相机刚性固定在
+                                                                  该 body 上随动。
+                                                 euler="2.70525955359 0 0":
+                                                                相机朝向欧拉角。 -->
                                             <camera name="wrist_cam_right" pos="0 -0.0824748 -0.0095955" fovy="58" mode="fixed" euler="2.70525955359 0 0"/>
                                         </body>
                                     </body>
@@ -125,45 +510,80 @@
                     </body>
                 </body>
             </body>
-            <!-- End of right arm -->
+            <!-- 右臂结束 -->
 
-            <!-- Left arm -->
+            <!-- ================== 左臂(Left arm)================== -->
+            <!-- body 左臂安装座:
+                 name="left_arm_mount"
+                 pos="0.469 -0.019 0.0": 与右臂镜像,x=+0.469m(另一侧),
+                                         y=-0.019m 与右臂相同。
+                 quat="0 0 0 1": 四元数 w=1,x=y=z=0,即无旋转
+                                 (右臂安装座未写 quat,默认也无旋转)。 -->
             <body name="left_arm_mount" pos="0.469 -0.019 0.0" quat="0 0 0 1">
+                <!-- site left_center:左臂中心标记点(与右臂对应)。 -->
                 <site name="left_center" pos="0 0 0" size="0.01" rgba="1 0.3 0.3 1" group="2"/>
+                <!-- inertial:左臂安装座惯量(与右臂相同)。 -->
                 <inertial pos="-0.0534774 -0.000562575 0.0205961" quat="-0.00292324 0.712517 0.00480387 0.701633" mass="3" diaginertia="0.0071633 0.00602451 0.00169819" />
                 <geom quat="1 0 0 1" class="visual" mesh="vx300s_1_base" />
                 <geom quat="1 0 0 1" mesh="vx300s_1_base" class="collision" />
+
+                <!-- body 左肩部连杆(与右臂结构完全对称,仅名称前缀改为 left/)。 -->
                 <body name="left/shoulder_link" pos="0 0 0.079">
+                    <!-- inertial:左肩部惯量。 -->
                     <inertial pos="0.000259233 -3.3552e-06 0.0116129" quat="-0.476119 0.476083 0.52279 0.522826" mass="2" diaginertia="0.00120156 0.00113744 0.0009388" />
+                    <!-- joint left/waist:左腰关节,与右腰相同参数,
+                         阻尼覆盖为 5.76。 -->
                     <joint name="left/waist" class="waist" damping="5.76" />
                     <geom pos="0 0 -0.003" quat="1 0 0 1" class="visual" mesh="vx300s_2_shoulder" />
                     <geom pos="0 0 -0.003" quat="1 0 0 1" mesh="vx300s_2_shoulder" class="collision" />
+
                     <body name="left/upper_arm_link" pos="0 0 0.04805">
                         <inertial pos="0.0206949 4e-10 0.226459" quat="0 0.0728458 0 0.997343" mass="2" diaginertia="0.00911338 0.008925 0.000759317" />
+                        <!-- joint left/shoulder:左肩关节(继承 shoulder 类)。 -->
                         <joint name="left/shoulder" class="shoulder" />
                         <geom quat="1 0 0 1" class="visual" mesh="vx300s_3_upper_arm" />
                         <geom quat="1 0 0 1" class="collision" mesh="vx300s_3_upper_arm" />
+
                         <body name="left/upper_forearm_link" pos="0.05955 0 0.3">
                             <inertial pos="0.105723 0 0" quat="-0.000621631 0.704724 0.0105292 0.709403" mass="2" diaginertia="0.00144107 0.00134228 0.000152047" />
+                            <!-- joint left/elbow:左肘关节(继承 elbow 类)。 -->
                             <joint name="left/elbow" class="elbow" />
                             <geom class="visual" mesh="vx300s_4_upper_forearm" />
                             <geom class="collision" mesh="vx300s_4_upper_forearm" />
+
                             <body name="left/lower_forearm_link" pos="0.2 0 0">
                                 <inertial pos="0.0513477 0.00680462 0" quat="-0.702604 -0.0796724 -0.702604 0.0796724" mass="2" diaginertia="0.0005911 0.000546493 0.000155707" />
+                                <!-- joint left/forearm_roll:左前臂自转(继承 forearm_roll 类)。 -->
                                 <joint name="left/forearm_roll" class="forearm_roll" />
                                 <geom quat="0 1 0 0" class="visual" mesh="vx300s_5_lower_forearm" />
                                 <geom quat="0 1 0 0" class="collision" mesh="vx300s_5_lower_forearm" />
+
                                 <body name="left/wrist_link" pos="0.1 0 0">
                                     <inertial pos="0.046743 -7.6652e-06 0.010565" quat="-0.00100191 0.544586 0.0026583 0.8387" mass="2" diaginertia="5.45707e-05 4.63101e-05 4.32692e-05" />
+                                    <!-- joint left/wrist_angle:左腕俯仰(继承 wrist_angle 类)。 -->
                                     <joint name="left/wrist_angle" class="wrist_angle" />
                                     <geom quat="1 0 0 1" class="visual" mesh="vx300s_6_wrist" />
                                     <geom quat="1 0 0 1" class="collision" mesh="vx300s_6_wrist" />
+
                                     <body name="left/gripper_link" pos="0.069744 0 0">
+                                        <!-- inertial:左 gripper_link 的惯量
+                                             (注意:与右臂不同,左臂此处显式声明了
+                                              mass=1.5 的惯量,右臂则在 right_hand
+                                              内统一声明,这是原模型的两侧差异)。 -->
                                         <inertial pos="0.0395662 -2.56311e-07 0.00400649" quat="0.62033 0.619916 -0.339682 0.339869" mass="1.5" diaginertia="0.000689546 0.000650316 0.000468142" />
+                                        <!-- joint left/wrist_rotate:左腕自转(继承 wrist_rotate 类)。 -->
                                         <joint name="left/wrist_rotate" class="wrist_rotate" />
+                                        <!-- site left/gripper:左夹爪末端参考点。 -->
                                         <site name="left/gripper" pos="0.15 0 0" group="1" />
+                                        <!-- body left_hand:左手末端(相机载体),姿态与右手对应。 -->
                                         <body name="left_hand" euler="0 1.57 -1.57" pos="0.035 0 0">
                                             <inertial pos="0.000182154 -0.0341589 -0.0106026" quat="0.435286 0.557074 -0.551539 0.442718" mass="0.42158" diaginertia="0.00110438 0.000790537 0.000469727" />
+                                            <!-- camera name="wrist_cam_left":左手腕相机。
+                                                 注意此处相机朝向使用四元数 quat 指定
+                                                 (而非右手的 euler),两者效果等价,
+                                                 都用于将相机对准工作区。
+                                                 fovy=58° 垂直视场角,
+                                                 mode="fixed" 固定于该 body。 -->
                                             <camera name="wrist_cam_left" pos="0 -0.0824748 -0.0095955" fovy="58" mode="fixed" quat="0.21643999811115602 0.9762959219507387 0.0 0.0" />
                                         </body>
 
@@ -175,16 +595,50 @@
                     </body>
                 </body>
             </body>
-            <!-- End of left arm -->
+            <!-- 左臂结束 -->
         </body>
     </worldbody>
 
+    <!-- ==========================================================================
+         contact 标签:配置全局接触相关规则(此处的 exclude 用于排除碰撞对)。
+         背景:机器人相邻连杆之间在运动时可能互相侵入(臂自身零件距离很近),
+         若不排除会产生大量虚假接触力。exclude 显式声明两刚体之间
+         "永不碰撞",可消除这类自碰撞(包括各自子树)。
+         ========================================================================== -->
     <contact>
+        <!-- exclude 标签:
+             body1="right_arm_mount"     : 第一个刚体 = 右臂安装座。
+             body2="right/shoulder_link" : 第二个刚体 = 右肩部连杆。
+             左右各一条,分别排除两臂安装座与其上第一个活动连杆(肩部)之间的
+             潜在碰撞接触(安装座与肩部壳体几何上相邻)。 -->
         <exclude body1="right_arm_mount" body2="right/shoulder_link"/>
         <exclude body1="left_arm_mount" body2="left/shoulder_link"/>
     </contact>
 
+    <!-- ==========================================================================
+         actuator 标签:声明执行器(驱动器)。执行器把控制信号 u 转换为
+         施加在关节上的广义力。每个 motor 通过 joint 属性绑定一个关节。
+         --------------------------------------------------------------------------
+         参数说明(以第一个为例,其余类推):
+           motor            : 执行器类型 = 电机。输出力矩 = 控制信号 ctrl × gain
+                             (此处默认 gain=1,即 ctrl 直接等于力矩指令,单位 N·m)。
+           ctrllimited="true": 限制控制信号的有效范围(开启)。
+           ctrlrange="-5 5"  : 控制信号(力矩指令)允许范围 -5 ~ 5 N·m。
+                             (该范围还会被关节默认类中的 actuatorfrcrange 进一步约束)
+           class="waist"     : 关联默认类。执行器与对应 joint 一同继承该类参数
+                             (如 joint 的轴/限位/阻尼、执行器 ctrlrange/kp 等)。
+           name="right/waist": 执行器名称,通常与关联关节同名,程序按名索引。
+           joint="right/waist": 绑定到的关节名称。
+         --------------------------------------------------------------------------
+         注意:虽然标签写的是 motor,但由于其关联的默认类中包含 position
+         子元素(kp/ctrlrange),在 LeRobot/遥操作数据中这些执行器通常作为
+         位置控制接口使用,控制信号为目标关节角。实际控制模式由上层
+         控制器/数据集决定。 -->
     <actuator>
+        <!-- 右臂 6 个执行器:腰部(±5N·m) -> 肩部(±50N·m) -> 肘部(±50N·m)
+             -> 前臂自转(±5N·m) -> 腕俯仰(±1N·m) -> 腕自转(±1N·m)。
+             力矩范围分布符合真实 vx300s:大关节(肩/肘)力矩大,
+             末端小关节(腕)力矩小。 -->
         <motor ctrllimited="true" ctrlrange="-5 5" class="waist" name="right/waist" joint="right/waist"/>
         <motor ctrllimited="true" ctrlrange="-50 50" class="shoulder" name="right/shoulder" joint="right/shoulder"/>
         <motor ctrllimited="true" ctrlrange="-50 50" class="elbow" name="right/elbow" joint="right/elbow"/>
@@ -192,6 +646,7 @@
         <motor ctrllimited="true" ctrlrange="-1 1" class="wrist_angle" name="right/wrist_angle" joint="right/wrist_angle"/>
         <motor ctrllimited="true" ctrlrange="-1 1" class="wrist_rotate" name="right/wrist_rotate" joint="right/wrist_rotate"/>
 
+        <!-- 左臂 6 个执行器,与右臂完全对称(名称前缀 left/)。 -->
         <motor ctrllimited="true" ctrlrange="-5 5" class="waist" name="left/waist" joint="left/waist"/>
         <motor ctrllimited="true" ctrlrange="-50 50" class="shoulder" name="left/shoulder" joint="left/shoulder"/>
         <motor ctrllimited="true" ctrlrange="-50 50" class="elbow" name="left/elbow" joint="left/elbow"/>

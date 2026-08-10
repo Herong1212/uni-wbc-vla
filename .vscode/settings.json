@@ -94,5 +94,7 @@
         "python": false,
         "jsonc": false
     },
-    "editor.inlineSuggest.fontFamily": "default"
+    "editor.inlineSuggest.fontFamily": "default",
+    "python-envs.defaultEnvManager": "ms-python.python:conda",
+    "python-envs.defaultPackageManager": "ms-python.python:conda"
 }
